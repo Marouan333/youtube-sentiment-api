@@ -1,11 +1,26 @@
-// Extrait les commentaires visibles sur la page YouTube.
-function getComments() {
-  const nodes = document.querySelectorAll("#content-text");
-  return Array.from(nodes).map((n) => n.innerText).filter(Boolean);
-}
+// Extrait les commentaires visibles sur la page YouTube (traverse le Shadow DOM).
+if (!window.__ytSentimentInjected) {
+  window.__ytSentimentInjected = true;
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "getComments") {
-    sendResponse({ comments: getComments() });
+  function queryAllDeep(selector, root) {
+    let results = Array.from(root.querySelectorAll(selector));
+    root.querySelectorAll("*").forEach((el) => {
+      if (el.shadowRoot) {
+        results = results.concat(queryAllDeep(selector, el.shadowRoot));
+      }
+    });
+    return results;
   }
-});
+
+  function getComments() {
+    return queryAllDeep("#content-text", document)
+      .map((el) => el.innerText.trim())
+      .filter(Boolean);
+  }
+
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "getComments") {
+      sendResponse({ comments: getComments() });
+    }
+  });
+}
