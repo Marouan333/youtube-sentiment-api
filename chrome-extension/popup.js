@@ -1,5 +1,6 @@
-// A remplacer par l'URL du Hugging Face Space une fois deploye (Phase 6).
-const API_URL = "http://localhost:8000/predict_batch";
+// URL publique du Codespace (GitHub Codespaces, Phase 6).
+// Attention : change a chaque redemarrage du Codespace -> relancer docker run et mettre a jour ici.
+const API_URL = "https://friendly-eureka-r5pv45q9r763wq44-7860.app.github.dev/predict_batch";
 
 const analyzeBtn = document.getElementById("analyze");
 const resultDiv = document.getElementById("result");
