@@ -30,7 +30,7 @@ analyzeBtn.addEventListener("click", async () => {
     if (!response.ok) throw new Error(`Erreur API (${response.status})`);
 
     const data = await response.json();
-    renderStats(data.stats, comments.length);
+    renderResult(comments, data.predictions, data.stats);
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -42,12 +42,41 @@ function setStatus(text, isError) {
   resultDiv.innerHTML = `<p class="${isError ? "error" : "status"}">${text}</p>`;
 }
 
-function renderStats(stats, total) {
-  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
-  resultDiv.innerHTML = `
-    <p class="total">${total} commentaires analyses</p>
-    <div class="bar"><span class="label positive">Positif</span><span>${stats.positive} (${pct(stats.positive)}%)</span></div>
-    <div class="bar"><span class="label neutral">Neutre</span><span>${stats.neutral} (${pct(stats.neutral)}%)</span></div>
-    <div class="bar"><span class="label negative">Negatif</span><span>${stats.negative} (${pct(stats.negative)}%)</span></div>
-  `;
+const SECTIONS = [
+  { label: 1, name: "Positif", cls: "positive" },
+  { label: 0, name: "Neutre", cls: "neutral" },
+  { label: -1, name: "Negatif", cls: "negative" },
+];
+
+function renderResult(comments, predictions, stats) {
+  resultDiv.innerHTML = `<p class="total">${comments.length} commentaires analyses</p>`;
+
+  SECTIONS.forEach(({ label, name, cls }) => {
+    const items = comments.filter((_, i) => predictions[i] === label);
+
+    const details = document.createElement("details");
+    details.open = label === 1;
+
+    const summary = document.createElement("summary");
+    summary.className = `label ${cls}`;
+    summary.textContent = `${name} (${items.length})`;
+    details.appendChild(summary);
+
+    const list = document.createElement("ul");
+    list.className = "comment-list";
+    items.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      list.appendChild(li);
+    });
+    if (items.length === 0) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "Aucun commentaire";
+      list.appendChild(li);
+    }
+    details.appendChild(list);
+
+    resultDiv.appendChild(details);
+  });
 }
