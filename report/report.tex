@@ -1,0 +1,343 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+\definecolor{positivecol}{HTML}{1BAF7A}
+\definecolor{neutralcol}{HTML}{898781}
+\definecolor{negativecol}{HTML}{E34948}
+\definecolor{accentcol}{HTML}{3267D6}
+
+\titleformat{\section}{\Large\bfseries\color{accentcol}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{TP3 -- Analyse de sentiment YouTube}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{\Large Rapport technique}\\[0.3cm]\LARGE Analyse de sentiment YouTube\\\large Du developpement au deploiement cloud}
+\author{Filiere INDIA -- ENSAM Rabat\\Encadrante : Prof. Maria Zemzami}
+\date{4 novembre 2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{center}
+\begin{tikzpicture}
+\node[draw, rounded corners, fill=accentcol!10, minimum width=10cm, minimum height=2cm, align=center]
+  {\small Repository : \url{https://github.com/Marouan333/youtube-sentiment-api}};
+\end{tikzpicture}
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction et analyse du probleme}
+
+Les createurs de contenu YouTube recoivent, sur les videos a forte audience, des centaines voire des milliers de commentaires. Comprendre le sentiment general de l'audience a partir de ce volume de texte pose trois problemes concrets :
+
+\begin{itemize}
+  \item \textbf{Chronophage et peu scalable} : lire manuellement des milliers de commentaires n'est pas une methode qui passe a l'echelle.
+  \item \textbf{Subjective et biaisee} : une lecture humaine rapide survole les commentaires et retient surtout les plus visibles (les plus likes, les premiers affiches), pas un echantillon representatif.
+  \item \textbf{Difficile a quantifier} : sans chiffres, impossible de comparer objectivement deux videos ou de suivre une tendance dans le temps.
+  \end{itemize}
+
+L'objectif de ce projet est de construire un systeme MLOps complet, de bout en bout, qui resout ce probleme : un modele de machine learning entraine sur des donnees labelisees, servi par une API REST deployee dans le cloud, consomme par une extension Chrome qui s'integre directement dans l'experience YouTube de l'utilisateur.
+
+\section{Solution proposee}
+
+Le systeme developpe suit un pipeline MLOps classique en six etapes, illustre figure~\ref{fig:flux}.
+
+\begin{enumerate}[label=\textbf{Etape \arabic*.}]
+  \item L'utilisateur visite une video YouTube et fait defiler jusqu'aux commentaires.
+  \item L'extension Chrome extrait le texte des commentaires visibles dans la page.
+  \item Les commentaires sont envoyes par batch (requete POST) a l'API cloud.
+  \item L'API vectorise le texte (TF-IDF) et applique le modele de classification (Logistic Regression).
+  \item Les predictions de sentiment (positif / neutre / negatif) sont retournees avec des statistiques agregees.
+  \item L'extension affiche les resultats : repartition en pourcentage, puis une liste filtrable par categorie.
+\end{enumerate}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.1cm, every node/.style={font=\small}]
+  \node[draw, rounded corners, fill=accentcol!10, minimum width=9cm] (step1) {1. Utilisateur ouvre une video YouTube};
+  \node[draw, rounded corners, fill=accentcol!10, minimum width=9cm, below=of step1] (step2) {2. Extension Chrome extrait les commentaires};
+  \node[draw, rounded corners, fill=accentcol!10, minimum width=9cm, below=of step2] (step3) {3. Envoi par batch a l'API cloud (HTTPS)};
+  \node[draw, rounded corners, fill=positivecol!15, minimum width=9cm, below=of step3] (step4) {4. API : vectorisation TF-IDF + prediction};
+  \node[draw, rounded corners, fill=positivecol!15, minimum width=9cm, below=of step4] (step5) {5. Retour JSON : predictions + statistiques};
+  \node[draw, rounded corners, fill=accentcol!10, minimum width=9cm, below=of step5] (step6) {6. Extension affiche stats et liste filtrable};
+
+  \foreach \a/\b in {step1/step2, step2/step3, step3/step4, step4/step5, step5/step6}
+    \draw[-{Stealth}] (\a) -- (\b);
+\end{tikzpicture}
+\caption{Flux de donnees du systeme, de l'utilisateur jusqu'a l'affichage des resultats.}
+\label{fig:flux}
+\end{figure}
+
+\section{Architecture detaillee}
+
+Le systeme est decompose en cinq composants independants, chacun responsable d'une seule etape du pipeline (tableau~\ref{tab:composants}). Cette separation permet de faire evoluer un composant (par exemple reentrainer le modele) sans toucher aux autres.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}p{3cm}p{10cm}@{}}
+\toprule
+\textbf{Composant} & \textbf{Role} \\
+\midrule
+Frontend & Extension Chrome (Manifest V3, JavaScript, HTML, CSS) qui extrait les commentaires et affiche les resultats. \\
+Backend & API REST FastAPI exposant deux endpoints : \texttt{/health} et \texttt{/predict\_batch}. \\
+ML Engine & Modele scikit-learn : vectoriseur TF-IDF + classifieur Logistic Regression, serialise avec \texttt{joblib}. \\
+Deploiement & Conteneur Docker (image \texttt{python:3.10-slim}), execute dans un GitHub Codespace, port 7860 expose publiquement en HTTPS. \\
+Version control & Git, depot GitHub public. \\
+\bottomrule
+\end{tabular}
+\caption{Composants du systeme et leur role.}
+\label{tab:composants}
+\end{table}
+
+\subsection{Structure du depot}
+
+\begin{verbatim}
+chrome-extension/   manifest.json, popup.html/.css/.js, content.js
+data/raw/            dataset brut (reddit.csv)
+data/processed/      train.csv / test.csv apres nettoyage
+models/               model.joblib, vectorizer.joblib
+src/data/            download.py, clean.py
+src/models/          train.py
+src/api/             main.py (application FastAPI)
+tests/                test_model.py, test_api.py
+Dockerfile
+requirements.txt
+\end{verbatim}
+
+\subsection{Pipeline de donnees}
+
+Le dataset utilise provient du corpus Reddit Sentiment Analysis (37~249 commentaires labelises~-1/0/1, soit 42\,\% positif, 35\,\% neutre, 23\,\% negatif). Le script \texttt{download.py} telecharge le CSV et affiche les statistiques de distribution. Le script \texttt{clean.py} nettoie le texte (minuscules, suppression des URLs et mentions, caracteres non alphabetiques) puis produit un split train/test stratifie 80/20 reproductible (\texttt{random\_state=42}).
+
+Separer les donnees \texttt{raw} et \texttt{processed} garantit que la source brute n'est jamais modifiee : on peut changer la logique de nettoyage et relancer le pipeline sans retelecharger les donnees.
+
+\subsection{Exploration des donnees}
+
+L'analyse exploratoire du dataset brut montre une distribution des classes raisonnablement equilibree (tableau~\ref{tab:dist}), largement au-dessus du minimum de 300 commentaires par classe exige par le TP, et une longueur moyenne de commentaire de 29 mots (de 0 a plus de 1300 mots pour les textes les plus longs), ce qui justifie l'ajout de tests specifiques sur les textes tres courts et tres longs (section~\ref{sec:tests}).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Classe} & \textbf{Nombre} & \textbf{Proportion} \\
+\midrule
+Positif (1) & 15\,830 & 42,5\,\% \\
+Neutre (0) & 13\,142 & 35,3\,\% \\
+Negatif (-1) & 8\,277 & 22,2\,\% \\
+\midrule
+\textbf{Total} & \textbf{37\,249} & \textbf{100\,\%} \\
+\bottomrule
+\end{tabular}
+\caption{Distribution des classes dans le dataset Reddit Sentiment Analysis.}
+\label{tab:dist}
+\end{table}
+
+\subsection{Nettoyage du texte}
+
+Le script \texttt{clean.py} applique, dans l'ordre : mise en minuscules, suppression des URLs (motif \texttt{http\textbackslash S+}), suppression des mentions (\texttt{@\textbackslash w+}), suppression des caracteres non alphabetiques, puis normalisation des espaces multiples. Les URLs et mentions sont retirees car elles n'apportent aucune information de sentiment et introduiraient du bruit dans le vocabulaire TF-IDF (chaque URL unique devenant un token different). Les emojis, supprimes par le filtrage des caracteres non alphabetiques dans cette version, representent une piste d'amelioration (section~\ref{sec:futur}) : ils portent souvent un signal de sentiment fort et pourraient etre convertis en texte (ex. \texttt{:)} -> \texttt{positif}) plutot que simplement retires.
+
+\section{Choix techniques justifies}
+
+\subsection{TF-IDF plutot que Count Vectorizer}
+
+Un \emph{Count Vectorizer} compte simplement les occurrences de chaque mot. TF-IDF (Term Frequency -- Inverse Document Frequency) pondere en plus chaque mot par sa rarete dans l'ensemble du corpus : un mot frequent dans tous les commentaires (``the'', ``video'') pese moins qu'un mot discriminant rare. Pour une tache de classification de sentiment, cela ameliore nettement la separation entre classes.
+
+\subsection{FastAPI plutot que Flask}
+
+FastAPI a ete choisi pour trois raisons : validation automatique des requetes via Pydantic (le corps JSON est verifie avant d'atteindre la logique metier), documentation interactive generee automatiquement (\texttt{/docs}), et performances superieures grace a son fondement asynchrone (Starlette + Uvicorn).
+
+\subsection{GitHub Codespaces plutot que Hugging Face Spaces}
+
+Le choix initial etait Hugging Face Spaces avec le SDK Docker. Au cours du developpement, Hugging Face a impose l'ajout d'une methode de paiement verifiee pour creer un Space Docker, meme sur le palier gratuit. Le sujet du TP a ete mis a jour en consequence pour utiliser GitHub Codespaces : une machine virtuelle Linux fournie gratuitement avec le compte GitHub personnel (quota mensuel d'heures gratuit), sans necessiter de carte bancaire. Le \texttt{Dockerfile} reste strictement identique -- seul l'hebergeur change.
+
+\subsection{Extraction des commentaires via injection directe}
+
+La premiere implementation reposait sur un \emph{content script} statique (declare dans \texttt{manifest.json}) qui ecoutait les messages envoyes par le popup via \texttt{chrome.runtime.onMessage}. Cette approche s'est averee fragile : lorsque l'extension est rechargee (pendant le developpement), les content scripts deja injectes dans les onglets ouverts perdent leur contexte d'execution, provoquant l'erreur \texttt{Could not establish connection. Receiving end does not exist.} La solution retenue injecte directement, a chaque clic sur ``Analyser'', une fonction d'extraction via \texttt{chrome.scripting.executeScript} avec l'option \texttt{func}. Le resultat est renvoye immediatement par l'appel, sans dependre d'un listener pre-existant.
+
+\section{Resultats et metriques de performance}
+
+\subsection{Performance du modele}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Metrique} & \textbf{Valeur} \\
+\midrule
+Accuracy (test set) & 87,0\,\% \\
+F1-score -- classe negative & 0,80 \\
+F1-score -- classe neutre & 0,91 \\
+F1-score -- classe positive & 0,88 \\
+Temps d'inference (batch de 50) & $< 100$ ms \\
+\bottomrule
+\end{tabular}
+\caption{Metriques du modele sur le jeu de test (7~400 commentaires).}
+\end{table}
+
+L'accuracy obtenue (87\,\%) depasse le critere minimal fixe a 80\,\%, et chaque F1-score par classe depasse le seuil de 0,75. La classe neutre est la mieux reconnue, ce qui s'explique par sa proportion plus elevee dans le jeu d'entrainement.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}l ccc@{}}
+\toprule
+ & \textbf{Predit negatif} & \textbf{Predit neutre} & \textbf{Predit positif} \\
+\midrule
+\textbf{Reel negatif} & 1327 & 137 & 191 \\
+\textbf{Reel neutre} & 66 & 2448 & 47 \\
+\textbf{Reel positif} & 258 & 257 & 2651 \\
+\bottomrule
+\end{tabular}
+\caption{Matrice de confusion sur le jeu de test (7\,400 commentaires).}
+\label{tab:confusion}
+\end{table}
+
+La matrice de confusion (tableau~\ref{tab:confusion}) montre que la majorite des erreurs se situe entre les classes negative et positive confondues avec la classe neutre, plutot qu'entre negatif et positif directement -- un schema attendu : un commentaire legerement nuance est plus facilement confondu avec le neutre qu'avec son oppose.
+
+\subsection{Choix et optimisation du modele}
+
+Le vectoriseur TF-IDF est configure avec \texttt{max\_features=5000} et des n-grammes de taille 1 et 2 (\texttt{ngram\_range=(1,2)}), ce qui permet de capturer des expressions courtes porteuses de sens (``not good'', ``really bad'') en plus des mots isoles. Le classifieur Logistic Regression utilise \texttt{class\_weight="balanced"} pour compenser le leger desequilibre entre classes observe au tableau~\ref{tab:dist}, sans necessiter de sur-echantillonnage explicite. Les hyperparametres ayant le plus d'impact observe sont le nombre de features du vectoriseur (plus de features ameliore le rappel mais ralentit l'inference) et le parametre de regularisation \texttt{C} du classifieur (un \texttt{C} trop eleve sur-ajuste sur le vocabulaire specifique de Reddit, qui differe legerement du vocabulaire YouTube en production).
+
+\subsection{Performance de l'API}
+
+Les tests mesurent un temps de reponse inferieur a 1 seconde pour un batch de 50 commentaires, aussi bien en local qu'en production sur le Codespace deploye.
+
+\subsection{Tests et validation}
+\label{sec:tests}
+
+La suite de tests automatises (\texttt{pytest}, 12 tests) couvre quatre axes :
+
+\begin{itemize}
+  \item \textbf{Modele} : accuracy sur le test set, comportement sur des cas limites (texte vide, tres long, emojis, langues melangees), temps d'inference.
+  \item \textbf{API} : endpoint \texttt{/health}, \texttt{/predict\_batch} avec differentes tailles de batch (2, 50, 0 commentaires), payload invalide (422), temps de reponse.
+  \item \textbf{Extension} : installation, extraction sur une vraie video, filtres fonctionnels (verifie manuellement).
+  \item \textbf{Integration} : flux complet extension -> API deployee -> affichage, verifie manuellement avec une video reelle.
+\end{itemize}
+
+Un bug reel a ete decouvert par cette suite de tests : l'envoi d'un batch vide (\texttt{comments: []}) faisait planter le vectoriseur TF-IDF (\texttt{ValueError}, minimum d'un echantillon requis). Le correctif ajoute une verification explicite avant la vectorisation, qui retourne des statistiques nulles sans appeler le modele.
+
+\section{Difficultes rencontrees et solutions}
+
+\begin{itemize}
+  \item \textbf{Changement d'hebergeur en cours de projet} : Hugging Face Spaces devenu payant pour Docker. \emph{Solution} : migration vers GitHub Codespaces, dockerfile inchange.
+  \item \textbf{Shadow DOM de YouTube} : les commentaires sont rendus dans des composants Web (Polymer) utilisant le Shadow DOM, invisible a \texttt{document.querySelectorAll} standard. \emph{Solution} : fonction de traversee recursive qui descend dans chaque \texttt{shadowRoot} rencontre.
+  \item \textbf{Perte de connexion content script / popup} apres rechargement de l'extension. \emph{Solution} : injection directe d'une fonction via \texttt{chrome.scripting.executeScript} au lieu du messaging.
+  \item \textbf{Batch vide faisant planter l'API}, decouvert par les tests automatises. \emph{Solution} : garde explicite avant l'appel au vectoriseur.
+  \item \textbf{Nature ephemere de Codespaces} : le port public et le conteneur s'arretent apres ~30 minutes d'inactivite. \emph{Solution} : procedure de redemarrage documentee dans le README, a executer avant chaque demonstration.
+\end{itemize}
+
+\section{Ameliorations futures possibles}
+\label{sec:futur}
+
+\begin{itemize}
+  \item Exposer un score de confiance par prediction (probabilite du modele) plutot qu'une classe seule.
+  \item Traiter separement les reponses (threads) de commentaires et les commentaires racine.
+  \item Ajouter un bouton d'export des resultats (CSV/JSON) et une bascule mode sombre/clair manuelle.
+  \item Remplacer l'hebergement ephemere (Codespaces) par un PaaS permanent (Render, Railway, Fly.io) pour une URL stable, adaptee a une mise en production reelle.
+  \item Reentrainer periodiquement le modele sur de nouvelles donnees labelisees pour suivre l'evolution du langage (argot, nouveaux emojis).
+\end{itemize}
+
+\section{Fonctionnalites de l'extension Chrome}
+
+L'interface popup de l'extension est concue pour donner une lecture immediate du sentiment global, puis permettre l'exploration detaillee :
+
+\begin{itemize}
+  \item \textbf{Zone de resume} : trois cartes affichant le pourcentage et le nombre de commentaires par categorie (positif / neutre / negatif), calcules cote client a partir du tableau de predictions retourne par l'API.
+  \item \textbf{Onglets de filtre} : ``Tous'', ``Positif'', ``Neutre'', ``Negatif'', chacun affichant son compteur ; cliquer sur un onglet filtre la liste sans nouvel appel reseau (l'etat des predictions est conserve cote client).
+  \item \textbf{Liste de commentaires etiquetes} : chaque commentaire est affiche avec une etiquette coloree correspondant a sa classe predite.
+  \item \textbf{Gestion d'erreurs} : messages explicites si l'utilisateur n'est pas sur une page video YouTube, si aucun commentaire n'est trouve (page pas encore faite defiler), ou si l'API repond une erreur.
+\end{itemize}
+
+L'extraction des commentaires repose sur une fonction \texttt{extractCommentsFromPage} injectee dans l'onglet actif via \texttt{chrome.scripting.executeScript}. Cette fonction traverse recursivement le Shadow DOM de la page (listing~\ref{lst:shadow}) car les composants de commentaires YouTube (\texttt{ytd-comment-renderer}) encapsulent leur contenu dans des \texttt{shadowRoot} non accessibles par un simple \texttt{document.querySelectorAll}.
+
+\begin{verbatim}
+function queryAllDeep(selector, root) {
+  let results = Array.from(root.querySelectorAll(selector));
+  root.querySelectorAll("*").forEach((el) => {
+    if (el.shadowRoot) {
+      results = results.concat(queryAllDeep(selector, el.shadowRoot));
+    }
+  });
+  return results;
+}
+\end{verbatim}
+\label{lst:shadow}
+
+\section{Annexe : extraits de code}
+
+\subsection{Entrainement du modele (\texttt{src/models/train.py})}
+
+\begin{verbatim}
+vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+X_train = vectorizer.fit_transform(train_df["text"])
+X_test = vectorizer.transform(test_df["text"])
+
+model = LogisticRegression(max_iter=1000, class_weight="balanced")
+model.fit(X_train, train_df["label"])
+
+preds = model.predict(X_test)
+print("Accuracy :", accuracy_score(test_df["label"], preds))
+print("F1 par classe :", f1_score(test_df["label"], preds, average=None))
+
+joblib.dump(model, MODEL_PATH)
+joblib.dump(vectorizer, VECTORIZER_PATH)
+\end{verbatim}
+
+\subsection{Endpoint de prediction (\texttt{src/api/main.py})}
+
+\begin{verbatim}
+@app.post("/predict_batch")
+def predict_batch(batch: CommentBatch):
+    if not batch.comments:
+        return {"predictions": [], "stats": {"positive": 0,
+                "neutral": 0, "negative": 0}}
+
+    X = vectorizer.transform(batch.comments)
+    predictions = model.predict(X).tolist()
+    counts = {
+        "positive": predictions.count(1),
+        "neutral": predictions.count(0),
+        "negative": predictions.count(-1),
+    }
+    return {"predictions": predictions, "stats": counts}
+\end{verbatim}
+
+\subsection{Exemple de requete API}
+
+\begin{verbatim}
+curl -X POST https://<codespace>-7860.app.github.dev/predict_batch \
+  -H "Content-Type: application/json" \
+  -d '{"comments": ["this video is amazing", "i hate this"]}'
+
+# Reponse :
+{"predictions": [1, -1], "stats": {"positive": 1, "neutral": 0, "negative": 1}}
+\end{verbatim}
+
+\section{Conclusion}
+
+Ce projet a permis de construire, de bout en bout, un systeme MLOps fonctionnel : de la collecte des donnees brutes jusqu'a une extension Chrome utilisable, en passant par l'entrainement d'un modele de classification, son exposition via une API REST et son deploiement dans le cloud. Les difficultes rencontrees -- changement d'hebergeur, Shadow DOM, messaging Chrome fragile, cas limite non gere -- ont chacune ete diagnostiquees et corrigees, avec une suite de tests automatises garantissant la non-regression. Le systeme est operationnel et verifie en conditions reelles sur une video YouTube.
+
+\end{document}
