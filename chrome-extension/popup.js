@@ -4,6 +4,15 @@ const API_URL = "http://localhost:8000/predict_batch";
 const analyzeBtn = document.getElementById("analyze");
 const resultDiv = document.getElementById("result");
 
+const CATEGORIES = [
+  { key: "all", label: "Tous", cls: "all" },
+  { key: 1, label: "Positif", cls: "positive" },
+  { key: 0, label: "Neutre", cls: "neutral" },
+  { key: -1, label: "Negatif", cls: "negative" },
+];
+
+let state = { comments: [], predictions: [], filter: "all" };
+
 analyzeBtn.addEventListener("click", async () => {
   setStatus("Analyse en cours...");
   analyzeBtn.disabled = true;
@@ -30,7 +39,8 @@ analyzeBtn.addEventListener("click", async () => {
     if (!response.ok) throw new Error(`Erreur API (${response.status})`);
 
     const data = await response.json();
-    renderResult(comments, data.predictions, data.stats);
+    state = { comments, predictions: data.predictions, filter: "all" };
+    render();
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -42,41 +52,70 @@ function setStatus(text, isError) {
   resultDiv.innerHTML = `<p class="${isError ? "error" : "status"}">${text}</p>`;
 }
 
-const SECTIONS = [
-  { label: 1, name: "Positif", cls: "positive" },
-  { label: 0, name: "Neutre", cls: "neutral" },
-  { label: -1, name: "Negatif", cls: "negative" },
-];
+function counts() {
+  const c = { all: state.comments.length, 1: 0, 0: 0, "-1": 0 };
+  state.predictions.forEach((p) => c[p]++);
+  return c;
+}
 
-function renderResult(comments, predictions, stats) {
-  resultDiv.innerHTML = `<p class="total">${comments.length} commentaires analyses</p>`;
+function render() {
+  resultDiv.innerHTML = "";
+  const total = state.comments.length;
+  const c = counts();
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
 
-  SECTIONS.forEach(({ label, name, cls }) => {
-    const items = comments.filter((_, i) => predictions[i] === label);
-
-    const details = document.createElement("details");
-    details.open = label === 1;
-
-    const summary = document.createElement("summary");
-    summary.className = `label ${cls}`;
-    summary.textContent = `${name} (${items.length})`;
-    details.appendChild(summary);
-
-    const list = document.createElement("ul");
-    list.className = "comment-list";
-    items.forEach((text) => {
-      const li = document.createElement("li");
-      li.textContent = text;
-      list.appendChild(li);
-    });
-    if (items.length === 0) {
-      const li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "Aucun commentaire";
-      list.appendChild(li);
-    }
-    details.appendChild(list);
-
-    resultDiv.appendChild(details);
+  const summary = document.createElement("div");
+  summary.className = "summary";
+  [
+    { name: "Positif", cls: "positive", n: c[1] },
+    { name: "Neutre", cls: "neutral", n: c[0] },
+    { name: "Negatif", cls: "negative", n: c[-1] },
+  ].forEach(({ name, cls, n }) => {
+    const box = document.createElement("div");
+    box.className = `stat ${cls}`;
+    box.innerHTML = `<span class="stat-pct">${pct(n)}%</span><span class="stat-name">${name}</span><span class="stat-n">${n}</span>`;
+    summary.appendChild(box);
   });
+  resultDiv.appendChild(summary);
+
+  const tabs = document.createElement("div");
+  tabs.className = "tabs";
+  CATEGORIES.forEach(({ key, label, cls }) => {
+    const btn = document.createElement("button");
+    btn.className = `tab ${cls}` + (state.filter === key ? " active" : "");
+    btn.textContent = `${label} (${c[key]})`;
+    btn.addEventListener("click", () => {
+      state.filter = key;
+      render();
+    });
+    tabs.appendChild(btn);
+  });
+  resultDiv.appendChild(tabs);
+
+  const list = document.createElement("ul");
+  list.className = "comment-list";
+  state.comments.forEach((text, i) => {
+    const label = state.predictions[i];
+    if (state.filter !== "all" && label !== state.filter) return;
+
+    const li = document.createElement("li");
+    const tag = document.createElement("span");
+    const tagInfo = CATEGORIES.find((cat) => cat.key === label);
+    tag.className = `tag ${tagInfo ? tagInfo.cls : ""}`;
+    tag.textContent = tagInfo ? tagInfo.label : "?";
+    li.appendChild(tag);
+
+    const span = document.createElement("span");
+    span.textContent = text;
+    li.appendChild(span);
+
+    list.appendChild(li);
+  });
+  if (!list.children.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "Aucun commentaire";
+    list.appendChild(li);
+  }
+  resultDiv.appendChild(list);
 }
