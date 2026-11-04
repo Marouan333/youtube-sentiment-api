@@ -15,9 +15,7 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Modèles entraînés
-models/*.joblib
-!models/.gitkeep
+# Modeles entraines : commites volontairement (necessaires au deploiement Docker/Codespaces)
 
 # Logs
 logs/*
