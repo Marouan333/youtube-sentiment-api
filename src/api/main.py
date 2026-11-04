@@ -28,6 +28,9 @@ def health():
 
 @app.post("/predict_batch")
 def predict_batch(batch: CommentBatch):
+    if not batch.comments:
+        return {"predictions": [], "stats": {"positive": 0, "neutral": 0, "negative": 0}}
+
     X = vectorizer.transform(batch.comments)
     predictions = model.predict(X).tolist()
     counts = {
