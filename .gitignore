@@ -1,0 +1,36 @@
+# Environnements virtuels
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Données brutes/volumineuses
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Modèles entraînés
+models/*.joblib
+!models/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Secrets
+.env
+
+# Editeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Extension Chrome (build)
+chrome-extension/node_modules/
