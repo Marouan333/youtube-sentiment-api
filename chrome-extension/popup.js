@@ -14,6 +14,21 @@ const CATEGORIES = [
 
 let state = { comments: [], predictions: [], filter: "all" };
 
+// Fonction injectee directement dans la page YouTube : traverse le Shadow DOM
+// pour trouver les commentaires et renvoie le resultat via chrome.scripting.
+function extractCommentsFromPage() {
+  function queryAllDeep(selector, root) {
+    let results = Array.from(root.querySelectorAll(selector));
+    root.querySelectorAll("*").forEach((el) => {
+      if (el.shadowRoot) results = results.concat(queryAllDeep(selector, el.shadowRoot));
+    });
+    return results;
+  }
+  return queryAllDeep("#content-text", document)
+    .map((el) => el.innerText.trim())
+    .filter(Boolean);
+}
+
 analyzeBtn.addEventListener("click", async () => {
   setStatus("Analyse en cours...");
   analyzeBtn.disabled = true;
@@ -24,9 +39,10 @@ analyzeBtn.addEventListener("click", async () => {
       throw new Error("Ouvre une video YouTube d'abord.");
     }
 
-    // Re-injecte le content script au cas ou la page a ete chargee avant l'extension.
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-    const { comments } = await chrome.tabs.sendMessage(tab.id, { action: "getComments" });
+    const [{ result: comments }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractCommentsFromPage,
+    });
 
     if (!comments || comments.length === 0) {
       throw new Error("Aucun commentaire trouve. Fais defiler jusqu'aux commentaires.");
