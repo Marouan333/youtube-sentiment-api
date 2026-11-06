@@ -12,7 +12,7 @@ Les createurs de contenu YouTube recoivent des centaines de commentaires par vid
 2. L'extension Chrome extrait les commentaires visibles
 3. Les commentaires sont envoyes par batch a une API cloud
 4. Un modele TF-IDF + Logistic Regression predit le sentiment (positif / neutre / negatif)
-5. L'extension affiche les resultats : statistiques globales, onglets de filtre, liste des commentaires par categorie
+5. L'extension affiche les resultats : statistiques globales, onglets de filtre, liste des commentaires par categorie, bouton de copie des resultats et mode sombre/clair
 
 ## Architecture technique
 
@@ -119,6 +119,8 @@ Attention : le Codespace s'arrete automatiquement apres ~30 minutes d'inactivite
 2. Cliquer sur l'icone de l'extension dans la barre d'outils
 3. Cliquer **Analyser les commentaires**
 4. Consulter les statistiques en haut, puis filtrer par onglet (Tous / Positif / Neutre / Negatif)
+5. Bouton &#9789; en haut a droite : bascule mode sombre/clair (preference sauvegardee via `chrome.storage`)
+6. Bouton &#128203; a cote d'Analyser : copie les resultats (stats + liste des commentaires avec leur sentiment) dans le presse-papiers
 
 ## Documentation API
 
@@ -170,6 +172,5 @@ pytest tests/ -v
 
 - Ajouter un score de confiance par prediction (proba du modele, pas seulement la classe)
 - Gerer les reponses (threads) de commentaires separement des commentaires racine
-- Mode sombre/clair bascule manuelle dans l'extension
-- Export des resultats (CSV/JSON)
+- Export des resultats en fichier (CSV/JSON), au-dela de la copie presse-papiers actuelle
 - Remplacer Codespaces (ephemere) par un hebergement PaaS permanent (Render, Railway) pour une URL stable

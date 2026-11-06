@@ -3,7 +3,48 @@
 const API_URL = "https://friendly-eureka-r5pv45q9r763wq44-7860.app.github.dev/predict_batch";
 
 const analyzeBtn = document.getElementById("analyze");
+const copyBtn = document.getElementById("copy");
+const themeToggleBtn = document.getElementById("theme-toggle");
 const resultDiv = document.getElementById("result");
+
+chrome.storage.local.get(["theme"], ({ theme }) => {
+  applyTheme(theme === "light" ? "light" : "dark");
+});
+
+themeToggleBtn.addEventListener("click", () => {
+  const next = document.body.getAttribute("data-theme") === "light" ? "dark" : "light";
+  applyTheme(next);
+  chrome.storage.local.set({ theme: next });
+});
+
+function applyTheme(theme) {
+  if (theme === "light") {
+    document.body.setAttribute("data-theme", "light");
+    themeToggleBtn.textContent = "☼";
+  } else {
+    document.body.removeAttribute("data-theme");
+    themeToggleBtn.textContent = "☽";
+  }
+}
+
+copyBtn.addEventListener("click", async () => {
+  if (!state.comments.length) return;
+  const labelFor = (key) => CATEGORIES.find((c) => c.key === key)?.label || "?";
+  const c = counts();
+  const lines = [
+    `YouTube Sentiment - resultats (${state.comments.length} commentaires)`,
+    `Positif: ${c[1]} | Neutre: ${c[0]} | Negatif: ${c[-1]}`,
+    "",
+    ...state.comments.map((text, i) => `[${labelFor(state.predictions[i])}] ${text}`),
+  ];
+  try {
+    await navigator.clipboard.writeText(lines.join("\n"));
+    copyBtn.classList.add("copied");
+    setTimeout(() => copyBtn.classList.remove("copied"), 1200);
+  } catch (err) {
+    setStatus("Impossible de copier: " + err.message, true);
+  }
+});
 
 const CATEGORIES = [
   { key: "all", label: "Tous", cls: "all" },
@@ -77,6 +118,7 @@ function counts() {
 
 function render() {
   resultDiv.innerHTML = "";
+  copyBtn.disabled = state.comments.length === 0;
   const total = state.comments.length;
   const c = counts();
   const pct = (n) => (total ? Math.round((n / total) * 100) : 0);

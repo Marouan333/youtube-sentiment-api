@@ -5,8 +5,14 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <h1>YouTube Sentiment</h1>
-  <button id="analyze">Analyser les commentaires</button>
+  <div class="header-row">
+    <h1>YouTube Sentiment</h1>
+    <button id="theme-toggle" title="Changer de theme">&#9789;</button>
+  </div>
+  <div class="actions-row">
+    <button id="analyze">Analyser les commentaires</button>
+    <button id="copy" title="Copier les resultats" disabled>&#128203;</button>
+  </div>
   <div id="result"></div>
   <script src="popup.js"></script>
 </body>

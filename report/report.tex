@@ -255,7 +255,7 @@ Un bug reel a ete decouvert par cette suite de tests : l'envoi d'un batch vide (
 \begin{itemize}
   \item Exposer un score de confiance par prediction (probabilite du modele) plutot qu'une classe seule.
   \item Traiter separement les reponses (threads) de commentaires et les commentaires racine.
-  \item Ajouter un bouton d'export des resultats (CSV/JSON) et une bascule mode sombre/clair manuelle.
+  \item Ajouter un export fichier des resultats (CSV/JSON), au-dela de la copie presse-papiers actuelle.
   \item Remplacer l'hebergement ephemere (Codespaces) par un PaaS permanent (Render, Railway, Fly.io) pour une URL stable, adaptee a une mise en production reelle.
   \item Reentrainer periodiquement le modele sur de nouvelles donnees labelisees pour suivre l'evolution du langage (argot, nouveaux emojis).
 \end{itemize}
@@ -264,12 +264,16 @@ Un bug reel a ete decouvert par cette suite de tests : l'envoi d'un batch vide (
 
 L'interface popup de l'extension est concue pour donner une lecture immediate du sentiment global, puis permettre l'exploration detaillee :
 
+\begin{sloppypar}
 \begin{itemize}
   \item \textbf{Zone de resume} : trois cartes affichant le pourcentage et le nombre de commentaires par categorie (positif / neutre / negatif), calcules cote client a partir du tableau de predictions retourne par l'API.
   \item \textbf{Onglets de filtre} : ``Tous'', ``Positif'', ``Neutre'', ``Negatif'', chacun affichant son compteur ; cliquer sur un onglet filtre la liste sans nouvel appel reseau (l'etat des predictions est conserve cote client).
   \item \textbf{Liste de commentaires etiquetes} : chaque commentaire est affiche avec une etiquette coloree correspondant a sa classe predite.
+  \item \textbf{Mode sombre/clair} : bouton en en-tete qui bascule un theme clair via un attribut \texttt{data-theme} sur \texttt{body} (variables CSS redefinies) ; la preference est persistee avec \texttt{chrome.storage.local} et reappliquee a chaque ouverture du popup.
+  \item \textbf{Copie des resultats} : bouton qui construit un recapitulatif texte (statistiques puis liste des commentaires avec leur sentiment) et l'ecrit dans le presse-papiers via l'API \texttt{navigator.clipboard}.
   \item \textbf{Gestion d'erreurs} : messages explicites si l'utilisateur n'est pas sur une page video YouTube, si aucun commentaire n'est trouve (page pas encore faite defiler), ou si l'API repond une erreur.
 \end{itemize}
+\end{sloppypar}
 
 L'extraction des commentaires repose sur une fonction \texttt{extractCommentsFromPage} injectee dans l'onglet actif via \texttt{chrome.scripting.executeScript}. Cette fonction traverse recursivement le Shadow DOM de la page (listing~\ref{lst:shadow}) car les composants de commentaires YouTube (\texttt{ytd-comment-renderer}) encapsulent leur contenu dans des \texttt{shadowRoot} non accessibles par un simple \texttt{document.querySelectorAll}.
 

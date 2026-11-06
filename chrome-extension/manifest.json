@@ -3,7 +3,7 @@
   "name": "YouTube Sentiment Analyzer",
   "version": "1.0",
   "description": "Analyse le sentiment des commentaires YouTube.",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://www.youtube.com/*"],
   "action": {
     "default_popup": "popup.html"
