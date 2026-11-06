@@ -89,15 +89,17 @@ analyzeBtn.addEventListener("click", async () => {
       throw new Error("Aucun commentaire trouve. Fais defiler jusqu'aux commentaires.");
     }
 
+    const start = performance.now();
     const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ comments }),
     });
+    const elapsedMs = Math.round(performance.now() - start);
     if (!response.ok) throw new Error(`Erreur API (${response.status})`);
 
     const data = await response.json();
-    state = { comments, predictions: data.predictions, filter: "all" };
+    state = { comments, predictions: data.predictions, filter: "all", elapsedMs };
     render();
   } catch (err) {
     setStatus(err.message, true);
@@ -122,6 +124,13 @@ function render() {
   const total = state.comments.length;
   const c = counts();
   const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+
+  if (state.elapsedMs !== undefined) {
+    const timing = document.createElement("p");
+    timing.className = "timing";
+    timing.textContent = `${total} commentaires analyses en ${state.elapsedMs} ms (API)`;
+    resultDiv.appendChild(timing);
+  }
 
   const summary = document.createElement("div");
   summary.className = "summary";
