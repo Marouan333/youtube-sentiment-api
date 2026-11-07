@@ -2,7 +2,7 @@
 
 Systeme MLOps complet qui analyse automatiquement le sentiment des commentaires YouTube : extension Chrome, API FastAPI, modele scikit-learn, deploiement cloud via Docker sur GitHub Codespaces.
 
-TP3 - Projet ML Complet - Filiere INDIA, ENSAM Rabat - Prof. Maria Zemzami
+TP3 - Projet ML Complet - Marouan Ezbakhe - Filiere INDIA, ENSAM Rabat - Prof. Maria Zemzami
 
 ## Description du projet
 

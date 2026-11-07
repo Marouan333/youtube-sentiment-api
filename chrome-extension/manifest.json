@@ -3,6 +3,7 @@
   "name": "YouTube Sentiment Analyzer",
   "version": "1.0",
   "description": "Analyse le sentiment des commentaires YouTube.",
+  "author": "Marouan Ezbakhe",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://www.youtube.com/*"],
   "action": {
