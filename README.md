@@ -122,6 +122,24 @@ Attention : le Codespace s'arrete automatiquement apres ~30 minutes d'inactivite
 5. Bouton &#9789; en haut a droite : bascule mode sombre/clair (preference sauvegardee via `chrome.storage`)
 6. Bouton &#128203; a cote d'Analyser : copie les resultats (stats + liste des commentaires avec leur sentiment) dans le presse-papiers
 
+## Guide utilisateur (captures d'ecran)
+
+**Analyse des commentaires** : statistiques globales et temps de reponse de l'API affiches des la fin de l'analyse.
+
+![Analyse des commentaires](docs/screenshots/01_analyse.jpg)
+
+**Filtres par sentiment** : onglets Tous / Positif / Neutre / Negatif pour explorer les commentaires par categorie.
+
+![Filtre par sentiment](docs/screenshots/02_filtre.jpg)
+
+**Mode clair** : bascule de theme, preference sauvegardee entre les ouvertures du popup.
+
+![Mode clair](docs/screenshots/03_theme_clair.jpg)
+
+**Copie des resultats** : confirmation visuelle apres copie dans le presse-papiers.
+
+![Copier les resultats](docs/screenshots/04_copier.jpg)
+
 ## Documentation API
 
 ### `GET /health`
